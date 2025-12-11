@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8" />
+  <title>AI 心情與壓力互動平台</title>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root{
+      --bg:#eef4ff; --card:#ffffff; --text:#0f1724; --accent:#4a6bff;
+    }
+    [data-theme="dark"]{
+      --bg:#0b1220; --card:#0f1724; --text:#e6eef8; --accent:#7aa2ff;
+    }
+
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family: "Segoe UI", Roboto, Arial; background:var(--bg); color:var(--text);
+      -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+      transition: background 0.3s ease, color 0.3s ease;
+    }
+    .page{
+      max-width:1100px; margin:24px auto; padding:20px;
+    }
+    .header{
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
+    }
+    h1{margin:6px 0 0 0; font-size:20px}
+    .subtitle{color:rgba(0,0,0,0.55); font-size:13px}
+    [data-theme="dark"] .subtitle{color:rgba(255,255,255,0.55)}
+
+    .grid{
+      display:grid; grid-template-columns: 1fr 420px; gap:18px; margin-top:16px;
+    }
+
+    .card{
+      background:var(--card); border-radius:12px; padding:16px; 
+      box-shadow: 0 4px 18px rgba(2,6,23,0.06);
+      transition: box-shadow 0.3s ease;
+    }
+    [data-theme="dark"] .card{box-shadow: 0 4px 18px rgba(0,0,0,0.3)}
+
+    textarea{
+      width:100%; min-height:120px; padding:12px; border-radius:10px; border:1px solid #d2d9ff;
+      resize:vertical; font-size:15px;
+      background:transparent; color:var(--text);
+      transition: border-color 0.3s ease;
+    }
+    textarea:focus{outline:none; border-color:var(--accent)}
+    [data-theme="dark"] textarea{border:1px solid rgba(255,255,255,0.15)}
+    [data-theme="dark"] textarea:focus{border-color:var(--accent)}
+    
+    input{
+      background:transparent; color:var(--text); border:1px solid #d2d9ff;
+      transition: border-color 0.3s ease;
+    }
+    input:focus{outline:none; border-color:var(--accent)}
+    [data-theme="dark"] input{border:1px solid rgba(255,255,255,0.15)}
+    [data-theme="dark"] input:focus{border-color:var(--accent)}
+    
+    button{
+      background:var(--accent); color:#fff; border:none; padding:10px 14px; 
+      border-radius:10px; cursor:pointer; font-weight:500;
+      transition: all 0.3s ease;
+    }
+    button:hover{transform:translateY(-1px); box-shadow: 0 4px 12px rgba(74,107,255,0.3)}
+    button:active{transform:translateY(0)}
+    
+    .btn-secondary{background:#f2f2f2; color:#0f1724}
+    .btn-secondary:hover{background:#e5e5e5}
+    [data-theme="dark"] .btn-secondary{background:rgba(255,255,255,0.1); color:var(--text)}
+    [data-theme="dark"] .btn-secondary:hover{background:rgba(255,255,255,0.15)}
+    
+    .btn-danger{background:#ff6b6b; color:#fff}
+    .btn-danger:hover{background:#ff5252; box-shadow: 0 4px 12px rgba(255,107,107,0.3)}
+    
+    select{
+      background:var(--card); color:var(--text); border:1px solid rgba(0,0,0,0.1);
+      padding:8px 10px; border-radius:8px; cursor:pointer;
+      transition: all 0.3s ease;
+    }
+    select:hover{border-color:var(--accent)}
+    [data-theme="dark"] select{border:1px solid rgba(255,255,255,0.15)}
+
+    .muted{color:rgba(0,0,0,0.55); font-size:13px}
+    [data-theme="dark"] .muted{color:rgba(255,255,255,0.5)}
+
+    .flex{display:flex; gap:12px; align-items:center}
+    .col{display:flex; flex-direction:column; gap:8px}
+    .charts{display:flex; gap:12px; flex-wrap:wrap; justify-content:center}
+    canvas{background:transparent; border-radius:8px}
+
+    .result-box{
+      margin-top:12px; padding:12px; 
+      background:linear-gradient(180deg, rgba(74,107,255,0.06), rgba(74,107,255,0.02)); 
+      border-radius:10px; text-align:left;
+      border:1px solid rgba(74,107,255,0.1);
+    }
+    [data-theme="dark"] .result-box{
+      background:linear-gradient(180deg, rgba(122,162,255,0.1), rgba(122,162,255,0.05));
+      border:1px solid rgba(122,162,255,0.15);
+    }
+    .small{font-size:13px}
+
+    /* diary list */
+    .diary-list{max-height:300px; overflow:auto; padding:8px; display:flex; flex-direction:column; gap:8px}
+    .diary-item{
+      padding:10px; border-radius:8px; background:rgba(0,0,0,0.03); 
+      display:flex; justify-content:space-between; gap:8px; align-items:flex-start;
+      transition: background 0.3s ease;
+    }
+    .diary-item:hover{background:rgba(0,0,0,0.05)}
+    [data-theme="dark"] .diary-item{background:rgba(255,255,255,0.02)}
+    [data-theme="dark"] .diary-item:hover{background:rgba(255,255,255,0.05)}
+
+    .controls{display:flex; gap:8px; align-items:center; margin-top:8px}
+    .mode-toggle{
+      padding:8px 12px; border-radius:8px; border:1px solid rgba(0,0,0,0.1); 
+      background:rgba(0,0,0,0.03); cursor:pointer; color:var(--text);
+      transition: all 0.3s ease; font-weight:500;
+    }
+    .mode-toggle:hover{background:rgba(0,0,0,0.06); transform:translateY(-1px)}
+    [data-theme="dark"] .mode-toggle{border:1px solid rgba(255,255,255,0.15); background:rgba(255,255,255,0.05)}
+    [data-theme="dark"] .mode-toggle:hover{background:rgba(255,255,255,0.1)}
+
+    .hint{font-size:12px; color:rgba(0,0,0,0.45); margin-top:8px}
+    [data-theme="dark"] .hint{color:rgba(255,255,255,0.45)}
+
+    /* responsive */
+    @media (max-width:980px){
+      .grid{grid-template-columns: 1fr; }
+      .charts{flex-direction:column; align-items:center}
+    }
+  </style>
+</head>
+<body>
+
+<div class="page" id="app">
+  <div class="header">
+    <div>
+      <h1>AI 心情與壓力互動平台</h1>
+      <div class="subtitle">輸入文字 → AI 分析情緒與壓力，並提供匿名日記與情緒趨勢追蹤</div>
+    </div>
+
+    <div class="flex">
+      <div class="small muted">今日一句：</div>
+      <div id="dailyQuote" class="small" style="font-weight:600">— 先分析才能給你專屬建議 —</div>
+      <button class="mode-toggle" id="themeToggle">切換深色/亮色</button>
+    </div>
+  </div>
+
+  <div class="grid">
+    <!-- 主區 -->
+    <div>
+      <div class="card">
+        <div style="display:flex; gap:12px; align-items:flex-start; flex-direction:column">
+          <label class="muted">請輸入你現在的心情或發生的事(可長可短)：</label>
+          <textarea id="userInput" placeholder="例如：我今天考試考得不好，覺得很焦慮..."></textarea>
+
+          <div class="controls">
+            <button id="analyzeBtn">開始分析</button>
+            <button id="saveDiaryBtn">儲存為匿名日記</button>
+            <select id="historyCount" title="趨勢點數">
+              <option value="10">趨勢顯示：最近 10 筆</option>
+              <option value="20" selected>最近 20 筆</option>
+              <option value="30">最近 30 筆</option>
+            </select>
+            <button id="clearAllBtn" class="btn-danger">清空紀錄</button>
+          </div>
+
+          <div id="result" class="result-box">
+            <div><b>分析結果會在此顯示</b></div>
+            <div id="resultContent" class="small muted" style="margin-top:6px">尚未分析</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 情緒趨勢 -->
+      <div class="card" style="margin-top:12px;">
+        <h3 style="margin:0 0 6px 0">情緒趨勢（折線圖）</h3>
+        <div class="muted small">系統會儲存每次分析的情緒分數與壓力分數（儲存在本機，不會外傳）。</div>
+        <canvas id="trendChart" height="160" style="margin-top:12px"></canvas>
+      </div>
+
+    </div>
+
+    <!-- 側邊 -->
+    <div>
+      <div class="card">
+        <h3 style="margin:0 0 6px 0">儀表板</h3>
+        <div class="muted small">情緒比例與壓力指標</div>
+
+        <div class="charts" style="margin-top:12px; justify-content:space-around; align-items:center">
+          <div style="width:220px; text-align:center">
+            <canvas id="emotionDoughnut" width="220" height="220"></canvas>
+            <div class="small muted" style="margin-top:6px">情緒強度（越高代表越偏向主要情緒）</div>
+          </div>
+
+          <div style="width:180px; text-align:center">
+            <canvas id="stressGauge" width="180" height="180"></canvas>
+            <div class="small muted" style="margin-top:6px">壓力指數（0–100）</div>
+          </div>
+        </div>
+
+        <div id="suggestionBox" style="margin-top:12px" class="small muted">
+          AI 建議將在分析後出現。
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <h3 style="margin:0 0 6px 0">匿名心情日記</h3>
+        <div class="muted small">儲存在你的瀏覽器（localStorage），不會外傳。</div>
+        <div style="margin-top:8px">
+          <input id="diaryTitle" placeholder="日記標題（選填）" style="width:100%; padding:8px; border-radius:8px; border:1px solid #ddd">
+          <div style="height:8px"></div>
+          <textarea id="diaryInput" placeholder="寫下今天的心情..." style="height:90px"></textarea>
+          <div style="display:flex; gap:8px; margin-top:8px">
+            <button id="diarySaveBtn">新增日記</button>
+            <button id="diaryClearBtn" class="btn-secondary">清除輸入</button>
+          </div>
+        </div>
+
+        <div style="margin-top:12px">
+          <h4 style="margin:6px 0">歷史日記</h4>
+          <div id="diaryList" class="diary-list"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script type="module">
+/*
+  完整版 JS 控制：
+  - AI 呼叫（Google Gemini SDK via esm.run）
+  - 圖表更新（Chart.js）
+  - localStorage 儲存日記與趨勢
+  - 主題切換
+  - 額外容錯：若 AI 回傳解析失敗，使用簡易情緒分析函式 fallback
+*/
+
+/* ====== 配置 ====== */
+const API_KEY = "AIzaSyDj6A9AzpMvkY8nSyt0sUcrkV88QpedtCs";
+
+/* 使用 Google Generative AI SDK (client side) */
+/* 注意：有些瀏覽器或 CORS 設定可能會阻擋直接使用 SDK。如遇到錯誤，可改由簡易後端轉 proxy 或改用後端呼叫。 */
+let useGemini = true; // 若想在本機完全離線 demo，可設 false 使用本地 fallback
+
+import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
+
+/* ====== DOM referenced ====== */
+const userInput = document.getElementById("userInput");
+const analyzeBtn = document.getElementById("analyzeBtn");
+const resultContent = document.getElementById("resultContent");
+const suggestionBox = document.getElementById("suggestionBox");
+const dailyQuote = document.getElementById("dailyQuote");
+const emotionDoughnutCtx = document.getElementById("emotionDoughnut").getContext("2d");
+const stressGaugeCtx = document.getElementById("stressGauge").getContext("2d");
+const trendCtx = document.getElementById("trendChart").getContext("2d");
+const diaryListEl = document.getElementById("diaryList");
+const diaryInput = document.getElementById("diaryInput");
+const diaryTitle = document.getElementById("diaryTitle");
+const diarySaveBtn = document.getElementById("diarySaveBtn");
+const diaryClearBtn = document.getElementById("diaryClearBtn");
+const saveDiaryBtn = document.getElementById("saveDiaryBtn");
+const historyCountEl = document.getElementById("historyCount");
+const clearAllBtn = document.getElementById("clearAllBtn");
+const analyzeHistoryLimit = () => parseInt(historyCountEl.value);
+
+/* ====== 狀態 ====== */
+let genAI = null;
+let emotionChart = null;
+let stressChart = null;
+let trendChart = null;
+let trendHistory = []; // {ts, emotionScore, stressScore, label}
+let diaryList = []; // {id,title,text,ts}
+
+/* ====== 初始化 ====== */
+function init(){
+  // theme
+  const themeToggle = document.getElementById("themeToggle");
+  const savedTheme = localStorage.getItem("theme") || "light";
+  setTheme(savedTheme);
+  themeToggle.addEventListener("click", ()=>{
+    const current = document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+    const next = current === "dark" ? "light" : "dark";
+    setTheme(next); 
+    localStorage.setItem("theme", next);
+  });
+
+  // Chart defaults
+  Chart.defaults.font.family = "'Segoe UI', Roboto, Arial";
+  updateChartColors();
+
+  // load history and diary from localStorage
+  loadLocal();
+
+  // create empty charts
+  createEmptyCharts();
+
+  // bind events
+  analyzeBtn.addEventListener("click", onAnalyzeClicked);
+  diarySaveBtn.addEventListener("click", addDiaryFromUI);
+  diaryClearBtn.addEventListener("click", ()=>{ diaryInput.value=""; diaryTitle.value=""; });
+  saveDiaryBtn.addEventListener("click", saveDiaryFromTextArea);
+  historyCountEl.addEventListener("change", updateTrendChart);
+  clearAllBtn.addEventListener("click", clearAllData);
+
+  // try init Gemini AI client
+  try {
+    if (API_KEY && API_KEY !== "AIzaSyDj6A9AzpMvkY8nSyt0sUcrkV88QpedtCs") {
+      genAI = new GoogleGenerativeAI(API_KEY);
+    } else {
+      // disable if user didn't set key
+      useGemini = false;
+      console.warn("Gemini API key not set. Using local fallback analyzer.");
+    }
+  } catch(err){
+    console.warn("Fail to init Gemini SDK, fallback to local analyzer.", err);
+    useGemini = false;
+  }
+
+  // show a daily quote (random)
+  dailyQuote.textContent = pickDailyQuote();
+  renderDiaryList();
+  updateTrendChart();
+}
+
+function setTheme(t){
+  if (t === "dark") document.documentElement.setAttribute("data-theme","dark");
+  else document.documentElement.removeAttribute("data-theme");
+  
+  // 更新圖表顏色
+  if (emotionChart) updateChartColors();
+}
+
+function updateChartColors(){
+  const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+  const textColor = isDark ? "#e6eef8" : "#0f1724";
+  
+  Chart.defaults.color = textColor;
+  
+  // 更新所有圖表
+  if (emotionChart) {
+    emotionChart.options.plugins.legend.labels.color = textColor;
+    emotionChart.update();
+  }
+  if (stressChart) {
+    stressChart.options.scales.x.ticks.color = textColor;
+    stressChart.options.scales.y.ticks.color = textColor;
+    stressChart.update();
+  }
+  if (trendChart) {
+    trendChart.options.scales.x.ticks.color = textColor;
+    trendChart.options.scales.y.ticks.color = textColor;
+    trendChart.options.plugins.legend.labels.color = textColor;
+    trendChart.update();
+  }
+}
+
+/* ====== AI Prompt / Fallback ====== */
+function buildPrompt(text){
+  return `
+請分析下列使用者輸入的情緒與壓力，並回傳只包含一個 JSON 字串（不要其他文字），格式如下：
+{
+  "emotion": "主要情緒（例如：開心、難過、焦慮、憤怒、平靜、疲憊）",
+  "emotion_score": 數字0-100,
+  "stress_score": 數字0-100,
+  "suggestion": "一句簡短、具體的建議（中文）",
+  "severity": "low|moderate|high"
+}
+使用者文字：
+"${text}"
+`;
+}
+
+/* Local fallback: 簡單字典式情緒估算（在 API 無法使用時仍能 demo） */
+function fallbackAnalyze(text){
+  const lowers = text.toLowerCase();
+  const negatives = ["難過","悲傷","焦慮","壓力","害怕","緊張","生氣","憂鬱","沮喪","疲倦","失眠"];
+  const positives = ["開心","高興","愉快","喜歡","興奮","放心","開朗","舒服"];
+  let negCount = 0, posCount = 0;
+  for (const w of negatives) if (text.includes(w)) negCount++;
+  for (const w of positives) if (text.includes(w)) posCount++;
+  let emotion = "平靜", emotion_score=50, stress_score=30, suggestion="試著放鬆、做幾次深呼吸。", severity="low";
+  if (negCount>0 && negCount >= posCount){
+    emotion = "負面";
+    emotion_score = Math.min(90, 50 + negCount*12);
+    stress_score = Math.min(95, 40 + negCount*13);
+    suggestion = "建議找朋友或家人聊聊，並做深呼吸或短暫散步。";
+    severity = stress_score>70 ? "high" : "moderate";
+  } else if (posCount>0){
+    emotion = "正向";
+    emotion_score = Math.max(55, 50 - posCount*5);
+    stress_score = Math.max(10, 30 - posCount*8);
+    suggestion = "保持這樣的好心情，試著分享你的喜悅！";
+    severity = "low";
+  }
+  return {emotion, emotion_score, stress_score, suggestion, severity};
+}
+
+/* ====== AI 呼叫主流程 ====== */
+async function callAIAnalyze(text){
+  if (useGemini && genAI){
+    try {
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const prompt = buildPrompt(text);
+      const res = await model.generateContent(prompt);
+      // res.response.text() may be Promise-like or string. Ensure string.
+      const raw = await res.response.text();
+      // Clean up — sometimes LLM 回傳帶有 ``` 或前後文字，取第一個 JSON
+      const jsonStart = raw.indexOf("{");
+      const jsonEnd = raw.lastIndexOf("}");
+      const jsonStr = jsonStart>=0 && jsonEnd>jsonStart ? raw.slice(jsonStart, jsonEnd+1) : raw;
+      const parsed = JSON.parse(jsonStr);
+      // ensure fields
+      if (parsed.emotion && parsed.emotion_score != null && parsed.stress_score != null) {
+        // normalize numeric
+        parsed.emotion_score = Math.max(0, Math.min(100, Number(parsed.emotion_score)));
+        parsed.stress_score = Math.max(0, Math.min(100, Number(parsed.stress_score)));
+        return parsed;
+      } else {
+        throw new Error("AI 回傳缺少必要欄位");
+      }
+    } catch (err){
+      console.warn("AI 解析失敗，使用 fallback：", err);
+      return fallbackAnalyze(text);
+    }
+  } else {
+    // local fallback
+    return fallbackAnalyze(text);
+  }
+}
+
+/* ====== 畫面互動 ====== */
+async function onAnalyzeClicked(){
+  const text = userInput.value.trim();
+  if (!text) { alert("請先輸入文字後再分析"); return; }
+  analyzeBtn.disabled = true; analyzeBtn.textContent = "分析中...";
+
+  try {
+    const aiResult = await callAIAnalyze(text);
+    displayResult(aiResult);
+    pushTrend(aiResult);
+    updateCharts(aiResult);
+  } catch (err){
+    console.error(err);
+    suggestionBox.textContent = "分析失敗，請稍後再試。";
+  } finally {
+    analyzeBtn.disabled = false; analyzeBtn.textContent = "開始分析";
+  }
+}
+
+function displayResult(data){
+  const html = `
+    <div><b>主要情緒：</b> ${escapeHtml(data.emotion)}</div>
+    <div><b>情緒強度：</b> ${data.emotion_score}/100</div>
+    <div><b>壓力指數：</b> ${data.stress_score}/100</div>
+    <div><b>情緒等級：</b> ${data.severity || 'moderate'}</div>
+    <div style="margin-top:8px"><b>AI 建議：</b> ${escapeHtml(data.suggestion)}</div>
+  `;
+  resultContent.innerHTML = html;
+  suggestionBox.innerHTML = `<div style="font-weight:600">${escapeHtml(data.suggestion)}</div>`;
+}
+
+/* ====== 圖表管理 ====== */
+function createEmptyCharts(){
+  const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+  const textColor = isDark ? "#e6eef8" : "#0f1724";
+  
+  emotionChart = new Chart(emotionDoughnutCtx, {
+    type: "doughnut",
+    data: { labels:["主要情緒","其他"], datasets:[{data:[60,40], backgroundColor:["#4a6bff","#ff7676"]}]},
+    options:{plugins:{legend:{display:true, position:"bottom", labels:{color:textColor}}}}
+  });
+
+  stressChart = new Chart(stressGaugeCtx, {
+    type: "bar",
+    data: { labels:["壓力"], datasets:[{data:[30], backgroundColor:"#ffb74a"}] },
+    options:{
+      indexAxis:"y", 
+      scales:{
+        x:{max:100, beginAtZero:true, ticks:{color:textColor}},
+        y:{ticks:{color:textColor}}
+      }
+    }
+  });
+
+  trendChart = new Chart(trendCtx, {
+    type: "line",
+    data: { labels:[], datasets:[
+      { label:"情緒分數", data:[], tension:0.3, fill:false, borderWidth:2 },
+      { label:"壓力分數", data:[], tension:0.3, fill:false, borderWidth:2 }
+    ]},
+    options:{
+      scales:{ 
+        y:{ min:0, max:100, ticks:{color:textColor} },
+        x:{ ticks:{color:textColor} }
+      },
+      plugins:{ legend:{ position: "top", labels:{color:textColor} }}
+    }
+  });
+}
+
+function updateCharts(data){ // data.emotion_score, data.stress_score
+  // doughnut: emotion_score vs rest
+  emotionChart.data.datasets[0].data = [data.emotion_score, Math.max(0, 100 - data.emotion_score)];
+  emotionChart.update();
+
+  // stress bar
+  stressChart.data.datasets[0].data = [data.stress_score];
+  stressChart.update();
+
+  // trend updated elsewhere
+}
+
+/* ====== 趨勢紀錄 ====== */
+function pushTrend(data){
+  const label = new Date().toLocaleString();
+  trendHistory.push({ts: Date.now(), label, emotionScore: data.emotion_score, stressScore: data.stress_score});
+  // limit to 200 entries
+  if (trendHistory.length > 200) trendHistory.shift();
+  saveLocal();
+  updateTrendChart();
+}
+
+function updateTrendChart(){
+  const limit = analyzeHistoryLimit();
+  const slice = trendHistory.slice(-limit);
+  trendChart.data.labels = slice.map(s => s.label);
+  trendChart.data.datasets[0].data = slice.map(s => s.emotionScore);
+  trendChart.data.datasets[1].data = slice.map(s => s.stressScore);
+  // style
+  trendChart.data.datasets[0].borderColor = "#4a6bff";
+  trendChart.data.datasets[1].borderColor = "#ff7b7b";
+  trendChart.update();
+}
+
+/* ====== 匿名日記 ====== */
+function addDiaryFromUI(){
+  const text = diaryInput.value.trim();
+  const title = diaryTitle.value.trim() || new Date().toLocaleString();
+  if (!text) { alert("請輸入日記內容"); return; }
+  const id = "d_" + Date.now();
+  diaryList.unshift({id, title, text, ts: Date.now()});
+  diaryInput.value = ""; diaryTitle.value = "";
+  saveLocal();
+  renderDiaryList();
+  alert("已新增日記（本機儲存）");
+}
+
+function saveDiaryFromTextArea(){
+  // 保存主輸入框的文字為日記
+  const text = userInput.value.trim();
+  if (!text) { alert("主輸入框無內容，無法儲存"); return; }
+  const id = "d_" + Date.now();
+  const title = (text.length>30) ? text.slice(0,30)+"..." : text;
+  diaryList.unshift({id, title, text, ts: Date.now()});
+  saveLocal(); renderDiaryList();
+  alert("已把分析文字儲存為匿名日記");
+}
+
+function renderDiaryList(){
+  diaryListEl.innerHTML = "";
+  if (diaryList.length === 0){
+    diaryListEl.innerHTML = `<div class="muted small">目前沒有日記</div>`;
+    return;
+  }
+  for (const item of diaryList){
+    const div = document.createElement("div");
+    div.className = "diary-item";
+    div.innerHTML = `
+      <div style="flex:1">
+        <div style="font-weight:600">${escapeHtml(item.title)}</div>
+        <div class="small muted" style="margin-top:6px">${escapeHtml(item.text)}</div>
+        <div class="small muted" style="margin-top:6px">${new Date(item.ts).toLocaleString()}</div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:6px; margin-left:8px">
+        <button data-id="${item.id}" class="btnView">查看</button>
+        <button data-id="${item.id}" class="btnDel btn-danger">刪除</button>
+      </div>
+    `;
+    diaryListEl.appendChild(div);
+  }
+
+  // bind buttons
+  diaryListEl.querySelectorAll(".btnDel").forEach(b=>{
+    b.addEventListener("click", (e)=>{
+      const id = e.target.getAttribute("data-id");
+      diaryList = diaryList.filter(x=>x.id !== id);
+      saveLocal(); renderDiaryList();
+    });
+  });
+  diaryListEl.querySelectorAll(".btnView").forEach(b=>{
+    b.addEventListener("click", (e)=>{
+      const id = e.target.getAttribute("data-id");
+      const item = diaryList.find(x=>x.id===id);
+      if (item){
+        alert(`【${item.title}】\n\n${item.text}\n\n${new Date(item.ts).toLocaleString()}`);
+      }
+    });
+  });
+}
+
+/* ====== localStorage ====== */
+function saveLocal(){
+  localStorage.setItem("mood_trend_history", JSON.stringify(trendHistory));
+  localStorage.setItem("mood_diary_list", JSON.stringify(diaryList));
+}
+function loadLocal(){
+  try {
+    const a = JSON.parse(localStorage.getItem("mood_trend_history")||"[]");
+    const b = JSON.parse(localStorage.getItem("mood_diary_list")||"[]");
+    trendHistory = Array.isArray(a)? a : [];
+    diaryList = Array.isArray(b)? b : [];
+  } catch(e){ trendHistory=[]; diaryList=[]; }
+}
+
+/* ====== 其他功能 ====== */
+function clearAllData(){
+  if (!confirm("確定清空所有本機日記與趨勢紀錄？此動作無法還原")) return;
+  trendHistory = []; diaryList = [];
+  saveLocal(); renderDiaryList(); updateTrendChart();
+  alert("已清空本機紀錄");
+}
+
+function pickDailyQuote(){
+  const quotes = [
+    "給自己一點時間，你已經做得很好。",
+    "深呼吸一下，慢慢向前走。",
+    "情緒會過去，別忘了你不是一個人。",
+    "小步前進也算進步。",
+    "允許自己休息，才能更有力氣。"
+  ];
+  return quotes[Math.floor(Math.random()*quotes.length)];
+}
+
+function escapeHtml(s){ return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;"); }
+
+/* ====== init ====== */
+init();
+
+</script>
+
+</body>
+</html>
